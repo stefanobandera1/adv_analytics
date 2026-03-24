@@ -39,4 +39,4 @@ jobs:
         run: black --check adsat/ tests/
 
       - name: Run tests with coverage
-        run: pytest tests/ -v --cov=adsat --cov-report=term-missing --cov-fail-under=53
+        run: pytest tests/ -v --cov=adsat --cov-report=term-missing --cov-fail-under=65

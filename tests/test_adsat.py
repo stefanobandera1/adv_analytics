@@ -68,6 +68,55 @@ class TestDistributionAnalyzer:
         reports = analyzer.analyze(sample_df, columns=["impressions"])
         assert isinstance(reports["impressions"].recommended_transform, str)
 
+    def test_column_report_summary_dataframe(self, sample_df):
+        analyzer = DistributionAnalyzer(verbose=False)
+        reports = analyzer.analyze(sample_df, columns=["impressions"])
+        summary = reports["impressions"].summary()
+        assert isinstance(summary, pd.DataFrame)
+        assert "distribution" in summary.columns
+        assert "aic" in summary.columns
+        assert len(summary) > 0
+
+    def test_fit_result_repr(self, sample_df):
+        analyzer = DistributionAnalyzer(verbose=False)
+        reports = analyzer.analyze(sample_df, columns=["impressions"])
+        best = reports["impressions"].best_fit
+        assert best is not None
+        r = repr(best)
+        assert "DistributionFitResult" in r
+        assert "ks_stat" in r
+
+    def test_fit_result_is_acceptable(self, sample_df):
+        analyzer = DistributionAnalyzer(verbose=False)
+        reports = analyzer.analyze(sample_df, columns=["impressions"])
+        best = reports["impressions"].best_fit
+        assert isinstance(best.is_acceptable, bool)
+
+    def test_get_report(self, sample_df):
+        analyzer = DistributionAnalyzer(verbose=False)
+        analyzer.analyze(sample_df, columns=["impressions"])
+        report = analyzer.get_report("impressions")
+        assert report.column == "impressions"
+
+    def test_get_report_missing_column_raises(self, sample_df):
+        analyzer = DistributionAnalyzer(verbose=False)
+        analyzer.analyze(sample_df, columns=["impressions"])
+        with pytest.raises(KeyError):
+            analyzer.get_report("nonexistent")
+
+    def test_analyze_skips_short_column(self):
+        df = pd.DataFrame({"short": [1.0, 2.0, 3.0]})
+        analyzer = DistributionAnalyzer(verbose=False)
+        with pytest.warns(UserWarning, match="fewer than 10"):
+            reports = analyzer.analyze(df, columns=["short"])
+        assert "short" not in reports
+
+    def test_plot_distributions_runs(self, sample_df):
+        analyzer = DistributionAnalyzer(verbose=False)
+        analyzer.analyze(sample_df, columns=["impressions"])
+        # Should complete without raising (Agg backend — no display)
+        analyzer.plot_distributions()
+
 
 # ---------------------------------------------------------------------------
 # Transformation tests
@@ -156,6 +205,57 @@ class TestModelEvaluator:
     def test_invalid_metric_raises(self):
         with pytest.raises(ValueError):
             ModelEvaluator(primary_metric="xyz")
+
+    def test_report_has_saturation_fields(self, sample_df):
+        modeler = SaturationModeler(models=["hill", "power"], verbose=False)
+        results = modeler.fit(sample_df, x_col="impressions", y_col="conversions")
+        evaluator = ModelEvaluator()
+        report = evaluator.evaluate(results)
+        assert report.saturation_point is None or report.saturation_point > 0
+        assert report.saturation_threshold > 0
+
+    def test_report_repr(self, sample_df):
+        modeler = SaturationModeler(models=["hill"], verbose=False)
+        results = modeler.fit(sample_df, x_col="impressions", y_col="conversions")
+        evaluator = ModelEvaluator()
+        report = evaluator.evaluate(results)
+        r = repr(report)
+        assert "EvaluationReport" in r
+        assert "best_model" in r
+
+    def test_require_convergence_false(self, sample_df):
+        modeler = SaturationModeler(models=["hill", "power"], verbose=False)
+        results = modeler.fit(sample_df, x_col="impressions", y_col="conversions")
+        evaluator = ModelEvaluator(require_convergence=False)
+        report = evaluator.evaluate(results)
+        assert report.best_model in results
+
+    def test_ranked_models_dataframe(self, sample_df):
+        modeler = SaturationModeler(models=["hill", "negative_exponential", "power"], verbose=False)
+        results = modeler.fit(sample_df, x_col="impressions", y_col="conversions")
+        evaluator = ModelEvaluator()
+        report = evaluator.evaluate(results)
+        assert isinstance(report.ranked_models, pd.DataFrame)
+        assert "model" in report.ranked_models.columns
+        assert "composite_score" in report.ranked_models.columns
+
+    def test_plot_model_comparison_runs(self, sample_df):
+        modeler = SaturationModeler(models=["hill", "negative_exponential"], verbose=False)
+        results = modeler.fit(sample_df, x_col="impressions", y_col="conversions")
+        evaluator = ModelEvaluator()
+        evaluator.evaluate(results)
+        # Should complete without raising (Agg backend — no display)
+        evaluator.plot_model_comparison()
+
+    def test_print_report_runs(self, sample_df, capsys):
+        modeler = SaturationModeler(models=["hill", "power"], verbose=False)
+        results = modeler.fit(sample_df, x_col="impressions", y_col="conversions")
+        evaluator = ModelEvaluator()
+        report = evaluator.evaluate(results)
+        evaluator.print_report(report)
+        captured = capsys.readouterr()
+        assert "SATURATION MODEL EVALUATION REPORT" in captured.out
+        assert report.best_model in captured.out
 
 
 # ---------------------------------------------------------------------------
@@ -342,6 +442,40 @@ class TestCampaignSaturationAnalyzer:
         for status in ("below", "approaching", "at", "beyond", "unknown"):
             result = batch.campaigns_by_status(status)
             assert isinstance(result, pd.DataFrame)
+
+    def test_batch_plot_all_runs(self, multi_campaign_df):
+        analyzer = CampaignSaturationAnalyzer(
+            campaign_col="campaign_id",
+            x_col="impressions",
+            y_col="conversions",
+            min_observations=10,
+            verbose=False,
+        )
+        batch = analyzer.run(multi_campaign_df)
+        # Should complete without raising (Agg backend — no display)
+        batch.plot_all()
+
+    def test_batch_plot_saturation_comparison_runs(self, multi_campaign_df):
+        analyzer = CampaignSaturationAnalyzer(
+            campaign_col="campaign_id",
+            x_col="impressions",
+            y_col="conversions",
+            min_observations=10,
+            verbose=False,
+        )
+        batch = analyzer.run(multi_campaign_df)
+        batch.plot_saturation_comparison()
+
+    def test_batch_plot_status_breakdown_runs(self, multi_campaign_df):
+        analyzer = CampaignSaturationAnalyzer(
+            campaign_col="campaign_id",
+            x_col="impressions",
+            y_col="conversions",
+            min_observations=10,
+            verbose=False,
+        )
+        batch = analyzer.run(multi_campaign_df)
+        batch.plot_status_breakdown()
 
 
 # ---------------------------------------------------------------------------
@@ -584,6 +718,33 @@ class TestModelDiagnostics:
         with pytest.raises(ValueError):
             ModelDiagnostics(alpha=1.5, verbose=False)
 
+    def test_plot_single_runs(self, hill_result):
+        from adsat.diagnostics import ModelDiagnostics
+
+        diag = ModelDiagnostics(verbose=False)
+        report = diag.run(hill_result)
+        # Should complete without raising (Agg backend — no display)
+        diag.plot(report)
+
+    def test_plot_comparison_runs(self, sample_df):
+        from adsat.diagnostics import ModelDiagnostics
+
+        modeler = SaturationModeler(models=["hill", "power"], verbose=False)
+        results = modeler.fit(sample_df, x_col="impressions", y_col="conversions")
+        diag = ModelDiagnostics(verbose=False)
+        reports = diag.run_all(results)
+        diag.plot_comparison(reports)
+
+    def test_print_summary_runs(self, hill_result, capsys):
+        from adsat.diagnostics import ModelDiagnostics
+
+        diag = ModelDiagnostics(verbose=False)
+        report = diag.run(hill_result)
+        report.print_summary()
+        captured = capsys.readouterr()
+        assert "DIAGNOSTICS REPORT" in captured.out
+        assert "Shapiro-Wilk" in captured.out
+
 
 # ---------------------------------------------------------------------------
 # Budget optimiser tests
@@ -668,6 +829,23 @@ class TestBudgetOptimizer:
         assert "campaign_id" in tbl.columns
         assert "marginal_return" in tbl.columns
 
+    def test_budget_allocation_print_summary_runs(self, batch_result, capsys):
+        from adsat.budget import BudgetOptimizer
+
+        opt = BudgetOptimizer(total_budget=5_000_000, n_restarts=2, verbose=False)
+        result = opt.optimise(batch_result)
+        result.print_summary()
+        captured = capsys.readouterr()
+        assert "BUDGET OPTIMISATION" in captured.out
+
+    def test_budget_allocation_plot_runs(self, batch_result):
+        from adsat.budget import BudgetOptimizer
+
+        opt = BudgetOptimizer(total_budget=5_000_000, n_restarts=2, verbose=False)
+        result = opt.optimise(batch_result)
+        # plot() accepts response_fns from the optimizer
+        result.plot(response_fns=opt.response_fns)
+
 
 # ---------------------------------------------------------------------------
 # Response curves tests
@@ -738,6 +916,46 @@ class TestResponseCurveAnalyzer:
         assert isinstance(results, dict)
         for res in results.values():
             assert isinstance(res, ResponseCurveResult)
+
+    def test_plot_curves_runs(self, batch_result):
+        from adsat.response_curves import ResponseCurveAnalyzer
+
+        analyzer = ResponseCurveAnalyzer(n_points=50, verbose=False)
+        results = analyzer.analyse(batch_result)
+        # Should complete without raising (Agg backend — no display)
+        analyzer.plot_curves(results)
+
+    def test_plot_marginal_returns_runs(self, batch_result):
+        from adsat.response_curves import ResponseCurveAnalyzer
+
+        analyzer = ResponseCurveAnalyzer(n_points=50, verbose=False)
+        results = analyzer.analyse(batch_result)
+        analyzer.plot_marginal_returns(results)
+
+    def test_plot_roi_curves_runs(self, batch_result):
+        from adsat.response_curves import ResponseCurveAnalyzer
+
+        analyzer = ResponseCurveAnalyzer(n_points=50, verbose=False)
+        results = analyzer.analyse(batch_result)
+        analyzer.plot_roi_curves(results)
+
+    def test_plot_efficiency_comparison_runs(self, batch_result):
+        from adsat.response_curves import ResponseCurveAnalyzer
+
+        analyzer = ResponseCurveAnalyzer(n_points=50, verbose=False)
+        results = analyzer.analyse(batch_result)
+        analyzer.plot_efficiency_comparison(results)
+
+    def test_summary_row_has_expected_keys(self, batch_result):
+        from adsat.response_curves import ResponseCurveAnalyzer
+
+        analyzer = ResponseCurveAnalyzer(n_points=50, verbose=False)
+        results = analyzer.analyse(batch_result)
+        for res in results.values():
+            row = res.summary_row()
+            assert "campaign_id" in row
+            assert "asymptote" in row
+            assert "pct_saturation_reached" in row
 
 
 # ---------------------------------------------------------------------------
