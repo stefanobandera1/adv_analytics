@@ -26,9 +26,9 @@ The package has two structurally distinct analytical layers that should never be
 
 Current version: **0.5.0**
 
-**Status**: published — on GitHub and PyPI as of 2026-03-23. CI passing (coverage floor 53%).
+**Status**: published — on GitHub and PyPI as of 2026-03-23. CI passing (coverage 66%, threshold 65%).
 
-**Next task**: increase test coverage to 65% (see Open tasks section below).
+**Next task**: increase test coverage to ≥70% by targeting `attribution.py` (44%) and `benchmark.py` (43%) — see Open tasks section below.
 
 ---
 
@@ -309,41 +309,44 @@ To check which models were fitted use `result.models_fitted` (a list), not
 
 ## Open tasks — work to do in future sessions
 
-### Increase test coverage from ~54% to ≥65%
+### Increase test coverage from 66% to ≥70%
 
-**Priority: high.** Coverage threshold is currently 53% (temporary floor). Target for next
-session is 65%, achieved by adding tests for three specific modules.
+**Status:** 65% threshold achieved as of 2026-03-24. 141 tests, 66% coverage.
+Threshold raised to 65% in `pyproject.toml` and `ci.yml`.
 
-**Current coverage by target module (as of 2026-03-23):**
-| Module | Lines | Missed | Coverage | Key uncovered lines |
-|---|---|---|---|---|
-| `evaluation.py` | 144 | 92 | 36% | 34, 126, 129, 150, 183–322 |
-| `distribution.py` | 241 | 131 | 46% | 57, 63, 87–99, 170–188, 242–451, 560–605 |
-| `response_curves.py` | 279 | 156 | 44% | 66–80, 253–254, 295–538, 554–608, 683–732 |
-| **TOTAL (all modules)** | 5371 | 2477 | **54%** | |
+**Current per-module coverage (as of 2026-03-24):**
+| Module | Coverage | Notes |
+|---|---|---|
+| `evaluation.py` | 97% | ✓ done |
+| `distribution.py` | 89% | ✓ done |
+| `response_curves.py` | 91% | ✓ done |
+| `diagnostics.py` | 81% | ✓ done |
+| `campaign.py` | 81% | ✓ done |
+| `exploratory.py` | 85% | ✓ done |
+| `modeling.py` | 72% | ✓ done |
+| `budget.py` | 66% | mostly done |
+| `attribution.py` | 44% | large gap |
+| `benchmark.py` | 43% | large gap |
 
-**What to do in the next session:**
-1. Run `pytest tests/ --cov=adsat --cov-report=term-missing -q` to confirm current state.
-2. Add tests to `tests/test_adsat.py` in the existing `TestModelEvaluator`,
-   `TestDistributionAnalyzer`, and `TestResponseCurveAnalyzer` classes. Focus on:
-   - `evaluation.py` lines 183–322: plot methods (`plot_comparison`, `plot_saturation_curve`,
-     `plot_residuals`) and the full `ModelEvaluator.evaluate()` result structure
-   - `distribution.py` lines 242–451: `plot_distributions()`, `plot_distribution_fits()`,
-     and individual distribution fitting paths (lognormal, gamma, exponential, etc.)
-   - `response_curves.py` lines 295–538: `plot_response_curve()`, `plot_roi_curve()`,
-     `plot_elasticity()`, `plot_efficiency_zones()`, and `analyse_response_curves()` one-liner
-3. Once overall coverage reaches 65%, raise `fail_under` to 65 in both `pyproject.toml`
-   and `.github/workflows/ci.yml`.
-4. Longer-term target remains 70% (requires also improving `attribution.py` and `benchmark.py`).
+**To reach 70%:** focus on `attribution.py` and `benchmark.py` — the two large modules
+(~1900 combined lines) with the most missed coverage. Add tests for:
+- `attribution.py`: individual model classes (Shapley Monte Carlo path, Markov chain
+  transitions, DataDriven path, Ensemble combine), `AttributionEvaluator`,
+  `AttributionBudgetAdvisor`, plot functions
+- `benchmark.py`: M2 bootstrap path, CUSUM/Pettitt change-point detection, VIF checking,
+  cross-segment z-score, `refit_after_changepoint`, individual plot methods
+
+Once 70% reached, raise `fail_under` to 70 in both `pyproject.toml` and `ci.yml`.
 
 **Do not** add tests just to hit the number — each test should assert something meaningful.
 
 ---
 
-## Test suite status (as of 2026-03-23)
+## Test suite status (as of 2026-03-24)
 
-- **Total**: 115 tests, all passing
-- **Runtime**: ~70 seconds (dominated by attribution Shapley and benchmark fitting)
+- **Total**: 141 tests, all passing
+- **Coverage**: 66% overall (threshold: 65%)
+- **Runtime**: ~90 seconds (dominated by attribution Shapley and benchmark fitting)
 - **File**: `tests/test_adsat.py` — single file, one class per module
 - **Conftest**: `tests/conftest.py` — sets `matplotlib.use("Agg")` before any import
   to prevent display errors in headless/CI environments
