@@ -52,7 +52,7 @@ from adsat.simulation import (
 )
 from adsat.transformation import DataTransformer
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __author__ = "adsat contributors"
 
 from .benchmark import (

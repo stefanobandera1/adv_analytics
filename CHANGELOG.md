@@ -15,6 +15,31 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.5.1] – 2026-03-27
+
+### Added
+- `CampaignResult.saturation_extrapolation_warning` — `str | None` field set when the
+  fitted saturation point exceeds `extrapolation_threshold × max(x_observed)` (default 3.0×).
+  Signals that the saturation estimate relies on extrapolation beyond observed data and
+  should be treated with caution in budget decisions.
+- `CampaignSaturationAnalyzer.__init__` now accepts `extrapolation_threshold: float = 3.0`.
+  Set to `float('inf')` to disable the warning entirely.
+
+### Changed
+- Test coverage raised from 66% to 72%; coverage threshold raised to 70% in
+  `pyproject.toml` and CI.
+- 18 new tests added to `TestAttribution` and `TestCampaignBenchmarker` covering
+  `EnsembleModel`, `AttributionEvaluator`, M2 bootstrap CI, M3 class values,
+  cross-segment z-score, CUSUM change-point detection, VIF checking, and plot methods.
+- `@pytest.mark.slow` marker introduced; Shapley Monte Carlo path gated behind it.
+  Local `pytest` skips slow tests; CI runs all with `-m ""`.
+
+### Fixed
+- `negative_exponential` model correctly documented (previously listed as "Exponential").
+- R² = 0 on fully-saturated campaigns documented as expected behaviour, not a fitting failure.
+
+---
+
 ## [0.5.0] – 2026-03-22
 
 ### Added
@@ -134,7 +159,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-[Unreleased]: https://github.com/stefanobandera1/adsat/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/stefanobandera1/adsat/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/stefanobandera1/adsat/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/stefanobandera1/adsat/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/stefanobandera1/adsat/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/stefanobandera1/adsat/compare/v0.2.0...v0.3.0

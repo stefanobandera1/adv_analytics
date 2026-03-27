@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 # ─────────────────────────────────────────────────────────────────────────────
 [project]
 name = "adsat"
-version = "0.5.0"
+version = "0.5.1"
 description = "Advertising Saturation Analysis Toolkit – identify impression saturation points in ad campaign data"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -108,7 +108,10 @@ ignore = ["E501", "N803", "N806"]
 [tool.pytest.ini_options]
 testpaths    = ["tests"]
 python_files = ["test_*.py"]
-addopts      = "-v --tb=short"
+addopts      = "-v --tb=short -m 'not slow'"
+markers      = [
+    "slow: marks tests as slow-running (deselect with '-m not slow')",
+]
 
 [tool.coverage.run]
 source = ["adsat"]
@@ -116,4 +119,4 @@ omit   = ["tests/*", "examples/*"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under   = 65
+fail_under   = 70
